@@ -2,7 +2,7 @@
 
 Zeichnet den ganzen Tag Bewegungsdaten auf und legt sie stundenweise als JSON-Lines in
 einen Ordner, den die Nextcloud-App synchronisiert. **Die App wertet nichts aus** – ob
-Gehen, Rad oder Auto, entscheidet später Schnupsi. Kein Google, keine Bibliotheken.
+Gehen, Rad oder Auto, entscheidet später die lokale KI. Kein Google, keine Bibliotheken.
 
 ## Logik
 
