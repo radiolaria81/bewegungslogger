@@ -364,7 +364,7 @@ class MainActivity : Activity() {
             })
             return v
         }
-        stepsValue = stat("Schritte seit Start")
+        stepsValue = stat("Schritte heute (ab 4 Uhr)")
         lastValue = stat("Letzter Datensatz")
         c.addView(stats)
         return c
@@ -460,8 +460,11 @@ class MainActivity : Activity() {
         stateTitle.text = title
         stateSub.text = sub
         val hm = SimpleDateFormat("HH:mm", Locale.GERMANY)
-        stepsValue.text = if (!Live.running) "–" else if (!Live.stepSensor) "kein Sensor" else
-            String.format(Locale.GERMANY, "%,d", Live.stepsSinceStart)
+        val now = System.currentTimeMillis()
+        val steps = if (Live.running && Live.stepsDayKey == Prefs.stepsDayKey(now)) Live.stepsToday
+        else Prefs.stepsToday(this, now)
+        stepsValue.text = if (Live.running && !Live.stepSensor) "kein Sensor" else
+            String.format(Locale.GERMANY, "%,d", steps)
         lastValue.text = if (Live.lastRecordMs > 0) hm.format(Date(Live.lastRecordMs)) else "–"
         val wifiName = Live.ssid ?: Live.bssid
         wifiSub.text = when {
