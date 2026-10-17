@@ -51,11 +51,17 @@ Fehlende Zeilen = App lief nicht.
 ## Einrichtung am Handy
 
 1. APK aus den GitHub-Releases installieren.
-2. In der App die Schritte 1–4 durchgehen: Berechtigungen, Standort „Immer zulassen“,
-   Zielordner (den Ordner, den die Nextcloud-App hochlädt), Akku-Optimierung aus.
+2. Beim ersten Start erscheint die Einrichtung: Berechtigungen, Standort „Immer zulassen“,
+   Zielordner (den Ordner, den die Nextcloud-App hochlädt), Akku-Optimierung aus → „Fertig“.
    Beim Xperia zusätzlich STAMINA-Modus für die App ausnehmen, falls aktiv.
+   Wird später etwas entzogen, zeigt die Hauptansicht einen Hinweis; ⚙ öffnet die Einrichtung jederzeit.
 3. „Aufzeichnung starten“.
-4. Zu Hause „Aktuelles WLAN hinzufügen“.
+4. Zu Hause „Aktuelles WLAN als ortsfest eintragen“. Entfernen geht in der Einrichtung.
+
+„Logdatei jetzt erstellen“ schließt die laufende Stunde sofort als Teildatei ab
+(`bewegung_2026-10-17_14+0200_teil-1432.jsonl`) und exportiert sie mit allen abgeschlossenen
+Stunden. Was danach in derselben Stunde aufgezeichnet wird, kommt zum Stundenende in die normale
+Stundendatei – keine Doppelungen, keine nachträglich geänderten Dateien.
 
 Nach Neustart oder App-Update startet die Aufzeichnung von selbst wieder, wenn sie an war.
 

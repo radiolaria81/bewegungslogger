@@ -94,6 +94,7 @@ class LoggerService : Service(), SensorEventListener2 {
     private val accel = AccelStats()
     private var anchor: Location? = null
     private var flushPending = false
+    private var exportNowRequested = false
     private var stepsRegistered = false
 
     private val isoFmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
@@ -150,7 +151,12 @@ class LoggerService : Service(), SensorEventListener2 {
                 return START_NOT_STICKY
             }
             ACTION_RECHECK -> if (started) handler.post { onWifi(Live.bssid, Live.ssid, force = true) }
-            ACTION_EXPORT -> if (started) handler.post { export(System.currentTimeMillis()) }
+            ACTION_EXPORT -> if (started) handler.post {
+                // Laufendes Intervall sofort abschließen (Sensorpuffer leeren), dann Teildatei exportieren
+                exportNowRequested = true
+                handler.removeCallbacks(tick)
+                if (!flushPending) onTick()
+            }
         }
         try {
             startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -281,14 +287,19 @@ class LoggerService : Service(), SensorEventListener2 {
         Live.lastRecordMs = now
 
         if (session && SystemClock.elapsedRealtime() - lastEvidence > STOP_AFTER_MS) stopSession()
-        export(now)
+        if (exportNowRequested) {
+            exportNowRequested = false
+            export(now, includeCurrent = true)
+        } else {
+            export(now)
+        }
         updateNotification()
         if (reschedule) scheduleTick()
     }
 
-    private fun export(now: Long) {
+    private fun export(now: Long, includeCurrent: Boolean = false) {
         val hm = SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date(now))
-        val r = runCatching { recorder.exportCompleted(now) }
+        val r = runCatching { if (includeCurrent) recorder.exportNow(now) else recorder.exportCompleted(now) }
         when {
             r.isFailure -> Live.lastExport = "$hm Fehler: ${r.exceptionOrNull()?.message}"
             r.getOrNull() == -1 -> Live.lastExport = "kein Zielordner gewählt (${recorder.pendingCount(now)} Stunden warten)"

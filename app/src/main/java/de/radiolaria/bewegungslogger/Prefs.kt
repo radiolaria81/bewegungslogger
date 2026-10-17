@@ -9,8 +9,12 @@ object Prefs {
     private const val KEY_ENABLED = "enabled"
     private const val KEY_TREE = "tree_uri"
     private const val KEY_WIFI = "stationary_wifi" // Einträge "bssid|ssid"
+    private const val KEY_SETUP_DONE = "setup_done"
 
     private fun sp(ctx: Context) = ctx.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+
+    fun setupDone(ctx: Context) = sp(ctx).getBoolean(KEY_SETUP_DONE, false)
+    fun setSetupDone(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean(KEY_SETUP_DONE, v).apply()
 
     fun enabled(ctx: Context) = sp(ctx).getBoolean(KEY_ENABLED, false)
     fun setEnabled(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean(KEY_ENABLED, v).apply()

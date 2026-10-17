@@ -31,6 +31,23 @@ class Recorder(private val ctx: Context) {
     }
 
     /**
+     * Sofort-Export: Die laufende Stunde wird als Teildatei abgeschlossen
+     * (bewegung_..._HH+0200_teil-HHmm.jsonl) und mit allen abgeschlossenen Stunden exportiert.
+     * Spätere Datensätze derselben Stunde landen in der normalen Stundendatei.
+     */
+    fun exportNow(nowMs: Long): Int {
+        val cur = File(dir, fileNameFor(nowMs))
+        if (cur.exists() && Prefs.treeUri(ctx) != null) {
+            val base = cur.name.removeSuffix(".jsonl") + "_teil-" + SimpleDateFormat("HHmm", Locale.US).format(Date(nowMs))
+            var target = File(dir, "$base.jsonl")
+            var i = 2
+            while (target.exists()) target = File(dir, "$base-${i++}.jsonl")
+            cur.renameTo(target)
+        }
+        return exportCompleted(nowMs)
+    }
+
+    /**
      * Exportiert alle abgeschlossenen Stunden.
      * @return Anzahl exportierter Dateien; -1 = kein Ordner gewählt.
      */

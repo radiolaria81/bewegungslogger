@@ -25,6 +25,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.window.OnBackInvokedDispatcher
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -76,8 +77,14 @@ class MainActivity : Activity() {
     private lateinit var stateSub: TextView
     private lateinit var stepsValue: TextView
     private lateinit var lastValue: TextView
-    private lateinit var wifiValue: TextView
-    private lateinit var exportValue: TextView
+    private lateinit var wifiSub: TextView
+    private lateinit var exportSub: TextView
+    private lateinit var banner: TextView
+    private lateinit var mainView: LinearLayout
+    private lateinit var setupView: LinearLayout
+    private lateinit var headerTitle: TextView
+    private lateinit var gear: TextView
+    private var setupMode = false
     private lateinit var toggle: TextView
     private lateinit var setupRows: List<SetupRow>
     private lateinit var wifiList: LinearLayout
@@ -90,24 +97,44 @@ class MainActivity : Activity() {
 
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(header())
-        content.addView(statusCard())
+
+        // ---- Hauptansicht: Start/Stopp, WLAN hinzufügen, Logdatei erstellen ----
+        mainView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        banner = text("", 14f, cWarn, bold = true).apply {
+            background = ripple(rounded(cWarnC, 16), 16)
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            isClickable = true
+            setOnClickListener { showSetup(true) }
+        }
+        mainView.addView(banner, lp(bottom = 12))
+        mainView.addView(statusCard())
         toggle = pillButton("") { onToggle() }
-        content.addView(toggle, lp(top = 4, bottom = 20))
-
-        content.addView(sectionTitle("Einrichtung"))
-        content.addView(setupCard())
-
-        content.addView(sectionTitle("Ortsfeste WLANs"))
-        content.addView(hint("Mit einem dieser WLANs verbunden: GPS bleibt aus, es werden nur Schritte gezählt."))
-        content.addView(wifiCard())
-
-        content.addView(sectionTitle("Export"))
-        content.addView(card().apply {
-            addView(actionRow("Abgeschlossene Stunden jetzt exportieren") {
+        mainView.addView(toggle, lp(top = 4, bottom = 16))
+        mainView.addView(card().apply {
+            val (r1, s1) = actionRowWithSub("Aktuelles WLAN als ortsfest eintragen") { addCurrentWifi() }
+            wifiSub = s1
+            addView(r1)
+            addView(divider())
+            val (r2, s2) = actionRowWithSub("Logdatei jetzt erstellen") {
                 if (Live.running) startService(Intent(this@MainActivity, LoggerService::class.java).setAction(LoggerService.ACTION_EXPORT))
                 else toast("Aufzeichnung läuft nicht.")
-            })
+            }
+            exportSub = s2
+            addView(r2)
         })
+        content.addView(mainView)
+
+        // ---- Einrichtung ----
+        setupView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        setupView.addView(hint("Einmalig nötig. Antippen, was noch nicht erledigt ist."))
+        setupView.addView(setupCard())
+        setupView.addView(sectionTitle("Ortsfeste WLANs"))
+        setupView.addView(hint("Mit einem dieser WLANs verbunden: GPS bleibt aus, es werden nur Schritte gezählt. Zum Entfernen antippen."))
+        setupView.addView(wifiCard())
+        val done = pillButton("Fertig") { finishSetup() }
+        stylePill(done, cPrimary, cOnPrimary)
+        setupView.addView(done, lp(top = 8, bottom = 8))
+        content.addView(setupView)
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -116,6 +143,44 @@ class MainActivity : Activity() {
         }
         setContentView(scroll)
         applyInsets(scroll)
+        registerBack()
+        showSetup(!Prefs.setupDone(this))
+    }
+
+    // ---------- Ansichten umschalten ----------
+
+    private fun showSetup(on: Boolean) {
+        setupMode = on
+        mainView.visibility = if (on) View.GONE else View.VISIBLE
+        setupView.visibility = if (on) View.VISIBLE else View.GONE
+        headerTitle.text = if (on) "Einrichtung" else "Bewegungslogger"
+        gear.visibility = if (on) View.GONE else View.VISIBLE
+        renderWifiList()
+        refresh()
+    }
+
+    private fun finishSetup() {
+        if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            toast("Ohne Standortberechtigung kann nicht aufgezeichnet werden (Schritt 1).")
+            return
+        }
+        Prefs.setSetupDone(this, true)
+        showSetup(false)
+    }
+
+    private fun onBack() {
+        if (setupMode && Prefs.setupDone(this)) showSetup(false) else finish()
+    }
+
+    private fun registerBack() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { onBack() }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        onBack()
     }
 
     override fun onResume() {
@@ -213,10 +278,19 @@ class MainActivity : Activity() {
         }
         row.addView(icon, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(14) })
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(text("Bewegungslogger", 22f, cText, bold = true))
+        headerTitle = text("Bewegungslogger", 22f, cText, bold = true)
+        col.addView(headerTitle)
         versionText = text("", 13f, cSub)
         col.addView(versionText)
         row.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        gear = text("⚙", 24f, cSub).apply {
+            gravity = Gravity.CENTER
+            background = ripple(null, 24)
+            isClickable = true
+            contentDescription = "Einrichtung"
+            setOnClickListener { showSetup(true) }
+        }
+        row.addView(gear, LinearLayout.LayoutParams(dp(48), dp(48)))
         return row
     }
 
@@ -291,20 +365,6 @@ class MainActivity : Activity() {
         stepsValue = stat("Schritte seit Start")
         lastValue = stat("Letzter Datensatz")
         c.addView(stats)
-
-        fun kv(label: String): TextView {
-            val r = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(12), 0, 0)
-            }
-            r.addView(text(label, 13f, cSub), LinearLayout.LayoutParams(dp(64), ViewGroup.LayoutParams.WRAP_CONTENT))
-            val v = text("–", 13f, cText)
-            r.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            c.addView(r)
-            return v
-        }
-        wifiValue = kv("WLAN")
-        exportValue = kv("Export")
         return c
     }
 
@@ -349,15 +409,21 @@ class MainActivity : Activity() {
         val c = card()
         wifiList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(wifiList)
-        c.addView(actionRow("+  Aktuelles WLAN hinzufügen") { addCurrentWifi() })
         return c
     }
 
-    private fun actionRow(label: String, onClick: () -> Unit) = text(label, 15f, cPrimary, bold = true).apply {
-        setPadding(dp(16), dp(16), dp(16), dp(16))
-        background = ripple(null, 20)
-        isClickable = true
-        setOnClickListener { onClick() }
+    private fun actionRowWithSub(label: String, onClick: () -> Unit): Pair<View, TextView> {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = ripple(null, 20)
+            isClickable = true
+            setOnClickListener { onClick() }
+        }
+        col.addView(text(label, 16f, cPrimary, bold = true))
+        val sub = text("", 13f, cSub)
+        col.addView(sub)
+        return col to sub
     }
 
     // ---------- Status ----------
@@ -395,13 +461,14 @@ class MainActivity : Activity() {
         stepsValue.text = if (!Live.running) "–" else if (!Live.stepSensor) "kein Sensor" else
             String.format(Locale.GERMANY, "%,d", Live.stepsSinceStart)
         lastValue.text = if (Live.lastRecordMs > 0) hm.format(Date(Live.lastRecordMs)) else "–"
-        wifiValue.text = when {
-            !Live.running -> "–"
-            Live.ssid != null -> Live.ssid + if (Live.stationary) "  · ortsfest" else ""
-            Live.bssid != null -> Live.bssid + if (Live.stationary) "  · ortsfest" else ""
-            else -> "keins"
+        val wifiName = Live.ssid ?: Live.bssid
+        wifiSub.text = when {
+            !Live.running -> "Erst Aufzeichnung starten"
+            wifiName == null -> "Kein WLAN verbunden"
+            Live.stationary -> "$wifiName – bereits eingetragen"
+            else -> "Verbunden: $wifiName"
         }
-        exportValue.text = if (Live.running) Live.lastExport else "–"
+        exportSub.text = if (Live.running) "Zuletzt: ${Live.lastExport}" else "Erst Aufzeichnung starten"
 
         if (Live.running) stylePill(toggle, cDangerC, cDanger) else stylePill(toggle, cPrimary, cOnPrimary)
         toggle.text = if (Live.running) "Aufzeichnung stoppen" else "Aufzeichnung starten"
@@ -427,6 +494,16 @@ class MainActivity : Activity() {
         val batt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         setBadge(setupRows[3], 4, batt)
         setupRows[3].sub.text = if (batt) "Erledigt" else "Antippen und für Bewegungslogger ausschalten"
+
+        // Warnhinweis auf der Hauptansicht, wenn nachträglich etwas entzogen wurde
+        val open = buildList {
+            if (missing.isNotEmpty()) add(missing.joinToString(", "))
+            if (!bg) add("Standort „Immer“")
+            if (folder == null) add("Zielordner")
+            if (!batt) add("Akku-Optimierung")
+        }
+        banner.visibility = if (open.isEmpty()) View.GONE else View.VISIBLE
+        banner.text = "⚠  Einrichtung unvollständig: ${open.joinToString(", ")} – antippen"
     }
 
     // ---------- Aufzeichnung ----------
