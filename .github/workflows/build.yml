@@ -32,11 +32,16 @@ jobs:
           name: bewegungslogger-apk
           path: app/build/outputs/apk/release/*.apk
 
-      - name: Release mit APK anlegen
+      - name: Release anlegen, wenn VERSION neu ist
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk bewegungslogger-${{ github.run_number }}.apk
-          gh release create "build-${{ github.run_number }}" bewegungslogger-${{ github.run_number }}.apk \
-            --title "Build ${{ github.run_number }}" \
-            --notes "Commit ${{ github.sha }}"
+          VER=$(tr -d '[:space:]' < VERSION)
+          if gh release view "v$VER" > /dev/null 2>&1; then
+            echo "Release v$VER gibt es schon – nur Artefakt, kein neues Release."
+            exit 0
+          fi
+          cp app/build/outputs/apk/release/app-release.apk "bewegungslogger-$VER.apk"
+          gh release create "v$VER" "bewegungslogger-$VER.apk" \
+            --title "Bewegungslogger $VER" \
+            --notes "Build ${{ github.run_number }}, Commit ${{ github.sha }}"

@@ -61,7 +61,9 @@ Nach Neustart oder App-Update startet die Aufzeichnung von selbst wieder, wenn s
 
 ## Bauen
 
-GitHub Actions baut bei jedem Push auf `main` und legt ein Release mit der APK an.
+GitHub Actions baut bei jedem Push auf `main`. Ein Release (`v0.2.0` usw.) mit der APK entsteht nur,
+wenn sich die Versionsnummer in der Datei `VERSION` ändert (Major.Minor.Patch); sonst liegt die APK
+nur als Artefakt am Workflow-Lauf.
 Signiert wird mit `app/signing.jks` aus dem Repo, damit Updates sich über die alte Version
 installieren lassen. Das ist nur in einem **privaten** Repo vertretbar.
 

@@ -13,9 +13,10 @@ android {
         applicationId = "de.radiolaria.bewegungslogger"
         minSdk = 29
         targetSdk = 35
-        // Fortlaufende Build-Nummer aus GitHub Actions, lokal 1
+        // versionCode: fortlaufende Build-Nummer aus GitHub Actions (muss steigen), lokal 1
+        // versionName: aus der Datei VERSION im Repo (Major.Minor.Patch)
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "0.1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        versionName = rootProject.file("VERSION").readText().trim()
     }
 
     // Fester Schlüssel im (privaten) Repo, damit Updates sich über die alte Version installieren lassen.

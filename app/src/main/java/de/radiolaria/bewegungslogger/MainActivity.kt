@@ -126,7 +126,9 @@ class MainActivity : Activity() {
             appendLine("${if (granted(Manifest.permission.ACTIVITY_RECOGNITION)) ok else no} Körperliche Aktivität")
             appendLine("${if (notifOk) ok else no} Benachrichtigungen")
             appendLine("${if (Prefs.treeUri(this@MainActivity) != null) ok else no} Zielordner")
-            append("${if (pm.isIgnoringBatteryOptimizations(packageName)) ok else no} Akku-Optimierung aus")
+            appendLine("${if (pm.isIgnoringBatteryOptimizations(packageName)) ok else no} Akku-Optimierung aus")
+            appendLine()
+            append("Version ${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"}")
         }
     }
 

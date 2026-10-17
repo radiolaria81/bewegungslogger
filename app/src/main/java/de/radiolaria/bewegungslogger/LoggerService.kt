@@ -421,7 +421,7 @@ class LoggerService : Service(), SensorEventListener2 {
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
         return Notification.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Bewegungslogger")
             .setContentText(text)
             .setOngoing(true)
