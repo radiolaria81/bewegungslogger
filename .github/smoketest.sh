@@ -15,11 +15,6 @@ adb shell am force-stop $PKG
 adb shell am start -W -n $PKG/.MainActivity
 sleep 4
 adb exec-out screencap -p > out/2_mit_rechten.png
-adb shell am start-foreground-service -n $PKG/.LoggerService
-sleep 8
-adb shell am start -W -n $PKG/.MainActivity
-sleep 4
-adb exec-out screencap -p > out/3_laeuft.png
 # "Fertig" in der Einrichtung antippen (per UI-Dump suchen, ggf. vorher scrollen)
 tap_text() {
   for i in 1 2 3; do
@@ -35,9 +30,13 @@ tap_text() {
 tap_text "Fertig"
 sleep 3
 adb exec-out screencap -p > out/4_hauptansicht.png
+tap_text "Aufzeichnung starten"
+sleep 75   # einen Minutentakt abwarten
+adb exec-out screencap -p > out/3_laeuft.png
 tap_text "Logdatei jetzt erstellen"
 sleep 3
 adb exec-out screencap -p > out/5_nach_export.png
+adb shell dumpsys activity services $PKG | head -40 > out/services.txt
 adb logcat -d -b crash > out/crash.txt
 adb logcat -d '*:W' > out/warn.txt
 echo "===== CRASH-BUFFER ====="
