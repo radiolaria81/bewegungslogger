@@ -5,6 +5,9 @@ on:
     branches: [smoketest]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   emulator:
     runs-on: ubuntu-latest
@@ -37,3 +40,12 @@ jobs:
         with:
           name: emulator-ergebnis
           path: out/
+      - name: Ergebnis in Branch smoketest-results ablegen
+        if: always()
+        run: |
+          mkdir -p /tmp/res && cp -r out/* /tmp/res/ || true
+          cd /tmp/res
+          git init -q -b smoketest-results
+          git config user.name ci; git config user.email ci@localhost
+          git add -A && git commit -qm "Emulator-Ergebnis ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" smoketest-results
