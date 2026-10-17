@@ -93,7 +93,6 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setupWindow()
 
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(header())
@@ -142,6 +141,7 @@ class MainActivity : Activity() {
             addView(content)
         }
         setContentView(scroll)
+        setupWindow() // erst nach setContentView: vorher gibt es keinen DecorView (NPE auf Android 15)
         applyInsets(scroll)
         registerBack()
         showSetup(!Prefs.setupDone(this))
