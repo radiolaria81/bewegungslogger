@@ -214,6 +214,15 @@ class LoggerService : Service(), SensorEventListener2 {
         scheduleTick()
     }
 
+    /** Tageszähler der Anzeige um 4:00 Uhr auf 0 setzen. */
+    private fun rollStepsDay(now: Long) {
+        val key = Prefs.stepsDayKey(now)
+        if (key != Live.stepsDayKey) {
+            Live.stepsDayKey = key
+            Live.stepsToday = Prefs.stepsToday(this, now) // gleicher Tag nach Neustart: weiterzählen, sonst 0
+        }
+    }
+
     private fun armSig() {
         sigSensor?.let { sm.requestTriggerSensor(sigListener, it) }
     }
@@ -285,6 +294,8 @@ class LoggerService : Service(), SensorEventListener2 {
         intervalStart = now
         sessionInInterval = session
         Live.lastRecordMs = now
+        rollStepsDay(now)
+        Prefs.saveStepsToday(this, Live.stepsDayKey, Live.stepsToday)
 
         if (session && SystemClock.elapsedRealtime() - lastEvidence > STOP_AFTER_MS) stopSession()
         if (exportNowRequested) {
@@ -322,7 +333,8 @@ class LoggerService : Service(), SensorEventListener2 {
                 lastStepTotal = total
                 val d = delta.toInt()
                 steps += d
-                Live.stepsSinceStart += d
+                rollStepsDay(System.currentTimeMillis())
+                Live.stepsToday += d
                 if (!stationary && !session && steps >= STEPS_START) {
                     evidence()
                     startSession()
