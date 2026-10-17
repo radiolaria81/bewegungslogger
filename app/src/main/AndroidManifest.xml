@@ -21,7 +21,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Bewegungslogger"
-        android:theme="@android:style/Theme.Material.Light.DarkActionBar">
+        android:theme="@style/AppTheme">
 
         <activity
             android:name=".MainActivity"

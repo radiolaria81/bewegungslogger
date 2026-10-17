@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 15: Inhalt nicht unter Status- und Titelleiste zeichnen.
+         Gilt nur bis targetSdk 35; ab 36 wird das Attribut ignoriert, dann Insets selbst behandeln. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.DarkActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>
