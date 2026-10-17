@@ -27,7 +27,8 @@ tap_text() {
     adb shell cat /sdcard/ui.xml > out/ui_$i.xml
     B=$(cat out/ui_$i.xml | grep -o "text=\"$1\"[^>]*bounds=\"[^\"]*\"" | grep -o 'bounds="[^"]*"' | head -1 | grep -o '[0-9]*' | tr '\n' ' ')
     if [ -n "$B" ]; then set -- $B; adb shell input tap $(( ($1+$3)/2 )) $(( ($2+$4)/2 )); return 0; fi
-    adb shell input swipe 500 1500 500 400 300; sleep 1
+    S=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); W=${S%x*}; H=${S#*x}
+    adb shell input swipe $((W/2)) $((H*8/10)) $((W/2)) $((H*2/10)) 400; sleep 2
   done
   return 1
 }
