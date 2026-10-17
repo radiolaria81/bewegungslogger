@@ -23,8 +23,9 @@ adb exec-out screencap -p > out/3_laeuft.png
 # "Fertig" in der Einrichtung antippen (per UI-Dump suchen, ggf. vorher scrollen)
 tap_text() {
   for i in 1 2 3; do
-    adb shell uiautomator dump /sdcard/ui.xml >/dev/null
-    B=$(adb shell cat /sdcard/ui.xml | grep -o "text=\"$1\"[^>]*bounds=\"[^\"]*\"" | grep -o 'bounds="[^"]*"' | head -1 | grep -o '[0-9]*' | tr '\n' ' ')
+    adb shell uiautomator dump /sdcard/ui.xml
+    adb shell cat /sdcard/ui.xml > out/ui_$i.xml
+    B=$(cat out/ui_$i.xml | grep -o "text=\"$1\"[^>]*bounds=\"[^\"]*\"" | grep -o 'bounds="[^"]*"' | head -1 | grep -o '[0-9]*' | tr '\n' ' ')
     if [ -n "$B" ]; then set -- $B; adb shell input tap $(( ($1+$3)/2 )) $(( ($2+$4)/2 )); return 0; fi
     adb shell input swipe 500 1500 500 400 300; sleep 1
   done
