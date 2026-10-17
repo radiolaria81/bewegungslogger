@@ -280,7 +280,10 @@ class MainActivity : Activity() {
         }
         row.addView(icon, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(14) })
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        headerTitle = text("Bewegungslogger", 22f, cText, bold = true)
+        headerTitle = text("Bewegungslogger", 21f, cText, bold = true).apply {
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
         col.addView(headerTitle)
         versionText = text("", 13f, cSub)
         col.addView(versionText)
