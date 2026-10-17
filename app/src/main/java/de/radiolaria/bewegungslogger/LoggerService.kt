@@ -53,7 +53,7 @@ class LoggerService : Service(), SensorEventListener2 {
         private const val NOTIF_ID = 1
 
         private const val TICK_MS = 60_000L
-        private const val STOP_AFTER_MS = 5 * 60_000L
+        private const val STOP_AFTER_MS = 60_000L
         private const val GPS_INTERVAL_MS = 5_000L
         private const val ACC_PERIOD_US = 40_000            // 25 Hz
         private const val ACC_LATENCY_US = 10_000_000       // Batching 10 s

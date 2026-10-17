@@ -12,7 +12,7 @@ Gehen, Rad oder Auto, entscheidet später die lokale KI. Kein Google, keine Bibl
 | GPS (alle 5 s) + Beschleunigungssensor (25 Hz) | nur wenn **kein ortsfestes WLAN** verbunden **und** Bewegung erkannt |
 
 - Bewegung = Significant-Motion-Sensor löst aus **oder** ≥ 15 Schritte im laufenden Intervall.
-- GPS geht aus, sobald ein ortsfestes WLAN verbunden ist **oder** 5 min lang keine Bewegung
+- GPS geht aus, sobald ein ortsfestes WLAN verbunden ist **oder** 1 min lang keine Bewegung
   (Bewegung dabei: GPS-Geschwindigkeit ≥ 1 m/s, ≥ 100 m Ortswechsel, oder ≥ 30 Schritte/Intervall).
 - Ortsfeste WLANs werden über die BSSID (Router-Kennung) erkannt. Bei Mesh/Repeatern hat jeder
   Zugangspunkt eine eigene BSSID → in der Nähe jedes Geräts einmal „Aktuelles WLAN hinzufügen“.
