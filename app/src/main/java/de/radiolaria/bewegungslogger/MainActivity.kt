@@ -71,6 +71,7 @@ class MainActivity : Activity() {
 
     // Views, die beim Aktualisieren geändert werden
     private lateinit var content: LinearLayout
+    private lateinit var scroll: ScrollView
     private lateinit var versionText: TextView
     private lateinit var stateDot: View
     private lateinit var stateTitle: TextView
@@ -135,7 +136,7 @@ class MainActivity : Activity() {
         setupView.addView(done, lp(top = 8, bottom = 8))
         content.addView(setupView)
 
-        val scroll = ScrollView(this).apply {
+        scroll = ScrollView(this).apply {
             isFillViewport = true
             clipToPadding = false
             addView(content)
@@ -155,6 +156,7 @@ class MainActivity : Activity() {
         setupView.visibility = if (on) View.VISIBLE else View.GONE
         headerTitle.text = if (on) "Einrichtung" else "Bewegungslogger"
         gear.visibility = if (on) View.GONE else View.VISIBLE
+        scroll.scrollTo(0, 0)
         renderWifiList()
         refresh()
     }
