@@ -129,7 +129,7 @@ class MainActivity : Activity() {
         setupView.addView(hint("Einmalig nötig. Antippen, was noch nicht erledigt ist."))
         setupView.addView(setupCard())
         setupView.addView(sectionTitle("Ortsfeste WLANs"))
-        setupView.addView(hint("Mit einem dieser WLANs verbunden: GPS bleibt aus, es werden nur Schritte gezählt. Zum Entfernen antippen."))
+        setupView.addView(hint("Mit einem dieser WLANs verbunden: GPS bleibt aus, es werden nur Schritte gezählt. Erkannt wird am Namen – alle Zugangspunkte (2,4/5 GHz, Repeater) zählen mit. Zum Entfernen antippen."))
         setupView.addView(wifiCard())
         val done = pillButton("Fertig") { finishSetup() }
         stylePill(done, cPrimary, cOnPrimary)

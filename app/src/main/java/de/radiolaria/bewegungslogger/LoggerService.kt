@@ -64,6 +64,7 @@ class LoggerService : Service(), SensorEventListener2 {
         private const val MOVE_DIST = 100f                  // m Abstand zum letzten Ankerpunkt
         private const val MAX_ACC = 30f                     // m, schlechtere Fixes zählen nicht als Bewegung
         private const val FLUSH_TIMEOUT_MS = 3_000L
+        private const val LEAVE_DELAY_MS = 60_000L         // so lange muss das ortsfeste WLAN weg sein
         private const val RECORD_VERSION = 1
     }
 
@@ -352,7 +353,24 @@ class LoggerService : Service(), SensorEventListener2 {
         Live.bssid = bssid
         Live.ssid = newSsid
         ssid = newSsid
-        val st = Prefs.isStationary(this, bssid)
+        val st = Prefs.isStationary(this, bssid, newSsid)
+        if (st) {
+            handler.removeCallbacks(leaveStationary)
+            setStationary(true, force)
+        } else if (stationary && !force) {
+            // Erst nach LEAVE_DELAY_MS ohne Rückkehr als "WLAN weg" werten (Zugangspunktwechsel, kurze Aussetzer)
+            handler.removeCallbacks(leaveStationary)
+            handler.postDelayed(leaveStationary, LEAVE_DELAY_MS)
+        } else {
+            setStationary(false, force)
+        }
+    }
+
+    private val leaveStationary = Runnable {
+        if (!Prefs.isStationary(this, Live.bssid, Live.ssid)) setStationary(false, false)
+    }
+
+    private fun setStationary(st: Boolean, force: Boolean) {
         if (st == stationary && !force) return
         stationary = st
         Live.stationary = st
