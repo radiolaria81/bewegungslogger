@@ -53,8 +53,16 @@ object Prefs {
             if (i < 0) it to "" else it.substring(0, i) to it.substring(i + 1)
         }
 
-    fun isStationary(ctx: Context, bssid: String?) =
-        bssid != null && stationaryWifis(ctx).containsKey(bssid.lowercase())
+    /**
+     * Ortsfest, wenn die BSSID eingetragen ist ODER der WLAN-Name (SSID) eines eingetragenen WLANs.
+     * Über den Namen zählen alle Zugangspunkte eines Netzes (2,4/5 GHz, Repeater, Mesh).
+     */
+    fun isStationary(ctx: Context, bssid: String?, ssid: String?): Boolean {
+        if (bssid == null) return false
+        val m = stationaryWifis(ctx)
+        if (m.containsKey(bssid.lowercase())) return true
+        return !ssid.isNullOrEmpty() && m.values.any { it == ssid }
+    }
 
     fun addStationary(ctx: Context, bssid: String, ssid: String?) {
         val m = stationaryWifis(ctx).toMutableMap()
