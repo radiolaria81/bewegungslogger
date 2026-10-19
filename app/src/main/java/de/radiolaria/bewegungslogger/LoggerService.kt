@@ -59,6 +59,7 @@ class LoggerService : Service(), SensorEventListener2 {
         private const val ACC_LATENCY_US = 10_000_000       // Batching 10 s
         private const val STEP_LATENCY_US = 30_000_000      // Batching 30 s
         private const val BARO_LATENCY_US = 30_000_000      // Batching 30 s
+        private const val BARO_NACHLAUF_MS = 3 * 60_000L    // Barometer nach WLAN-Verbindung noch so lange an
         private const val STEPS_START = 15                  // so viele Schritte im Intervall starten eine Sitzung
         private const val STEPS_EVIDENCE = 30               // so viele Schritte pro Intervall gelten als Bewegung
         private const val MOVE_SPEED = 1.0f                 // m/s (GPS-Doppler)
@@ -391,14 +392,25 @@ class LoggerService : Service(), SensorEventListener2 {
         updateNotification()
     }
 
-    /** Barometer läuft immer außerhalb ortsfester WLANs (Treppenhaus, Anstiege), zu Hause aus. */
+    /**
+     * Barometer läuft außerhalb ortsfester WLANs (Treppenhaus, Anstiege) und noch BARO_NACHLAUF_MS
+     * nach dem Verbinden – das Heim-WLAN reicht oft schon in die oberen Stockwerke des Treppenhauses.
+     */
     private fun updateBaro() {
         val s = baroSensor ?: return
         val want = !stationary
-        if (want && !baroOn) {
-            baroOn = sm.registerListener(this, s, SensorManager.SENSOR_DELAY_NORMAL, BARO_LATENCY_US, handler)
-        } else if (!want && baroOn) {
-            sm.unregisterListener(this, s)
+        if (want) {
+            handler.removeCallbacks(baroStop)
+            if (!baroOn) baroOn = sm.registerListener(this, s, SensorManager.SENSOR_DELAY_NORMAL, BARO_LATENCY_US, handler)
+        } else if (baroOn) {
+            handler.removeCallbacks(baroStop)
+            handler.postDelayed(baroStop, BARO_NACHLAUF_MS)
+        }
+    }
+
+    private val baroStop = Runnable {
+        if (stationary && baroOn) {
+            baroSensor?.let { sm.unregisterListener(this, it) }
             baroOn = false
         }
     }
