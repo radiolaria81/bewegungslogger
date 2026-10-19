@@ -58,6 +58,7 @@ class LoggerService : Service(), SensorEventListener2 {
         private const val ACC_PERIOD_US = 40_000            // 25 Hz
         private const val ACC_LATENCY_US = 10_000_000       // Batching 10 s
         private const val STEP_LATENCY_US = 30_000_000      // Batching 30 s
+        private const val BARO_LATENCY_US = 30_000_000      // Batching 30 s
         private const val STEPS_START = 15                  // so viele Schritte im Intervall starten eine Sitzung
         private const val STEPS_EVIDENCE = 30               // so viele Schritte pro Intervall gelten als Bewegung
         private const val MOVE_SPEED = 1.0f                 // m/s (GPS-Doppler)
@@ -79,6 +80,10 @@ class LoggerService : Service(), SensorEventListener2 {
     private var stepSensor: Sensor? = null
     private var sigSensor: Sensor? = null
     private var accSensor: Sensor? = null
+    private var baroSensor: Sensor? = null
+    private var baroOn = false
+    private var hpaSum = 0.0
+    private var hpaN = 0
     private var started = false
 
     // ---- Zustand, nur auf dem logger-Thread ----
@@ -200,7 +205,9 @@ class LoggerService : Service(), SensorEventListener2 {
         stepSensor = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         sigSensor = sm.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)
         accSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        baroSensor = sm.getDefaultSensor(Sensor.TYPE_PRESSURE)
         Live.stepSensor = stepSensor != null
+        Live.baroSensor = baroSensor != null
 
         val actGranted = checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) ==
             PackageManager.PERMISSION_GRANTED
@@ -208,6 +215,7 @@ class LoggerService : Service(), SensorEventListener2 {
             sm.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_NORMAL, STEP_LATENCY_US, handler)
 
         armSig()
+        updateBaro()
         wifi.start()
         intervalStart = System.currentTimeMillis()
         Live.running = true
@@ -273,6 +281,7 @@ class LoggerService : Service(), SensorEventListener2 {
         rec.put("sig_motion", sigCount)
         battery()?.let { rec.put("batt", it) }
         rec.put("gps", gps)
+        if (hpaN > 0) rec.put("hpa", round(hpaSum / hpaN, 2))  // Luftdruck-Mittel (nur außerhalb ortsfester WLANs)
         val a = accel.result()
         if (a != null) {
             val o = JSONObject()
@@ -292,6 +301,8 @@ class LoggerService : Service(), SensorEventListener2 {
         sigCount = 0
         gps = JSONArray()
         accel.reset()
+        hpaSum = 0.0
+        hpaN = 0
         intervalStart = now
         sessionInInterval = session
         Live.lastRecordMs = now
@@ -342,6 +353,7 @@ class LoggerService : Service(), SensorEventListener2 {
                 }
             }
             Sensor.TYPE_ACCELEROMETER -> accel.add(e.timestamp, e.values[0], e.values[1], e.values[2])
+            Sensor.TYPE_PRESSURE -> { hpaSum += e.values[0]; hpaN++ }
         }
     }
 
@@ -375,7 +387,20 @@ class LoggerService : Service(), SensorEventListener2 {
         stationary = st
         Live.stationary = st
         if (stationary && session) stopSession()
+        updateBaro()
         updateNotification()
+    }
+
+    /** Barometer läuft immer außerhalb ortsfester WLANs (Treppenhaus, Anstiege), zu Hause aus. */
+    private fun updateBaro() {
+        val s = baroSensor ?: return
+        val want = !stationary
+        if (want && !baroOn) {
+            baroOn = sm.registerListener(this, s, SensorManager.SENSOR_DELAY_NORMAL, BARO_LATENCY_US, handler)
+        } else if (!want && baroOn) {
+            sm.unregisterListener(this, s)
+            baroOn = false
+        }
     }
 
     // ---------- Sitzung (GPS + Beschleunigung) ----------
