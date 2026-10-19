@@ -88,6 +88,7 @@ object Live {
     @Volatile var ssid: String? = null
     @Volatile var bssid: String? = null
     @Volatile var stepSensor = true
+    @Volatile var baroSensor = false
     @Volatile var stepsToday = 0L
     @Volatile var stepsDayKey = ""
     @Volatile var lastRecordMs = 0L

@@ -78,6 +78,7 @@ class MainActivity : Activity() {
     private lateinit var stateSub: TextView
     private lateinit var stepsValue: TextView
     private lateinit var lastValue: TextView
+    private lateinit var baroText: TextView
     private lateinit var wifiSub: TextView
     private lateinit var exportSub: TextView
     private lateinit var banner: TextView
@@ -370,6 +371,8 @@ class MainActivity : Activity() {
         stepsValue = stat("Schritte heute (ab 4 Uhr)")
         lastValue = stat("Letzter Datensatz")
         c.addView(stats)
+        baroText = text("", 12f, cSub).apply { setPadding(dp(2), dp(10), 0, 0) }
+        c.addView(baroText)
         return c
     }
 
@@ -469,6 +472,11 @@ class MainActivity : Activity() {
         stepsValue.text = if (Live.running && !Live.stepSensor) "kein Sensor" else
             String.format(Locale.GERMANY, "%,d", steps)
         lastValue.text = if (Live.lastRecordMs > 0) hm.format(Date(Live.lastRecordMs)) else "–"
+        baroText.text = when {
+            !Live.running -> ""
+            Live.baroSensor -> "Barometer: vorhanden (Höhenmeter außer Haus)"
+            else -> "Barometer: nicht vorhanden – keine Höhenmeter"
+        }
         val wifiName = Live.ssid ?: Live.bssid
         wifiSub.text = when {
             !Live.running -> "Erst Aufzeichnung starten"
