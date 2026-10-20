@@ -45,6 +45,8 @@ deshalb Start und Ende):
 | `sig_motion` | Auslösungen des Significant-Motion-Sensors |
 | `gps[]` | Rohpunkte: Zeit (ms), Lage, Genauigkeit (m), Geschwindigkeit (m/s, Doppler), Höhe |
 | `hpa` | Luftdruck-Mittel des Intervalls (hPa), nur wenn das Handy ein Barometer hat; außerhalb ortsfester WLANs und noch 3 min nach dem Verbinden (Treppenhaus) |
+| `hpa_end` | letzter Luftdruckwert des Intervalls (hPa) |
+| `steig_max` | schnellster Anstieg im Intervall (m/s, über 10 s); Fahrstuhl meist ≥ 0,6, Treppe deutlich darunter. Fehlt, wenn keine 10 s Messwerte vorlagen |
 | `acc` | nur bei GPS an: Betrag der Beschleunigung, Mittel/Std.-Abw. (m/s²), vorherrschende Frequenz 0,5–5 Hz und ihr Leistungsanteil |
 
 Fehlende Zeilen = App lief nicht.

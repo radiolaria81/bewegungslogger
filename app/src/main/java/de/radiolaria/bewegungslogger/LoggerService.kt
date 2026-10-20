@@ -83,8 +83,7 @@ class LoggerService : Service(), SensorEventListener2 {
     private var accSensor: Sensor? = null
     private var baroSensor: Sensor? = null
     private var baroOn = false
-    private var hpaSum = 0.0
-    private var hpaN = 0
+    private val baro = BaroStats()
     private var started = false
 
     // ---- Zustand, nur auf dem logger-Thread ----
@@ -282,7 +281,11 @@ class LoggerService : Service(), SensorEventListener2 {
         rec.put("sig_motion", sigCount)
         battery()?.let { rec.put("batt", it) }
         rec.put("gps", gps)
-        if (hpaN > 0) rec.put("hpa", round(hpaSum / hpaN, 2))  // Luftdruck-Mittel (nur außerhalb ortsfester WLANs)
+        baro.result()?.let { b ->  // Luftdruck (nur außerhalb ortsfester WLANs und kurz danach)
+            rec.put("hpa", round(b.mean, 2))
+            rec.put("hpa_end", round(b.last, 2))
+            b.climbMax?.let { rec.put("steig_max", round(it, 2)) }
+        }
         val a = accel.result()
         if (a != null) {
             val o = JSONObject()
@@ -302,8 +305,7 @@ class LoggerService : Service(), SensorEventListener2 {
         sigCount = 0
         gps = JSONArray()
         accel.reset()
-        hpaSum = 0.0
-        hpaN = 0
+        baro.reset()
         intervalStart = now
         sessionInInterval = session
         Live.lastRecordMs = now
@@ -354,7 +356,7 @@ class LoggerService : Service(), SensorEventListener2 {
                 }
             }
             Sensor.TYPE_ACCELEROMETER -> accel.add(e.timestamp, e.values[0], e.values[1], e.values[2])
-            Sensor.TYPE_PRESSURE -> { hpaSum += e.values[0]; hpaN++ }
+            Sensor.TYPE_PRESSURE -> baro.add(e.timestamp, e.values[0])
         }
     }
 
