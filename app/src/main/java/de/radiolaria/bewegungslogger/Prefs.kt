@@ -93,4 +93,6 @@ object Live {
     @Volatile var stepsDayKey = ""
     @Volatile var lastRecordMs = 0L
     @Volatile var lastExport = "–"
+    @Volatile var kalibSeit = 0L      // 0 = keine Kalibrierung
+    @Volatile var kalibMarke = ""
 }

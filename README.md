@@ -46,7 +46,7 @@ deshalb Start und Ende):
 | `gps[]` | Rohpunkte: Zeit (ms), Lage, Genauigkeit (m), Geschwindigkeit (m/s, Doppler), Höhe |
 | `hpa` | Luftdruck-Mittel des Intervalls (hPa), nur wenn das Handy ein Barometer hat; außerhalb ortsfester WLANs und noch 3 min nach dem Verbinden (Treppenhaus) |
 | `hpa_end` | letzter Luftdruckwert des Intervalls (hPa) |
-| `steig_max` | schnellster Anstieg im Intervall (m/s, über 10 s); Fahrstuhl meist ≥ 0,6, Treppe deutlich darunter. Fehlt, wenn keine 10 s Messwerte vorlagen |
+| `steig_max` | schnellster Anstieg im Intervall (m/s, über 10 s). Fehlt, wenn keine 10 s Messwerte vorlagen. Achtung: Treppe und Radfahren lieferten 0,7–1,0 m/s (21.10.2026) – als Fahrstuhl-Merkmal noch nicht brauchbar, siehe Kalibrierung |
 | `acc` | nur bei GPS an: Betrag der Beschleunigung, Mittel/Std.-Abw. (m/s²), vorherrschende Frequenz 0,5–5 Hz und ihr Leistungsanteil |
 
 Fehlende Zeilen = App lief nicht.
@@ -77,3 +77,20 @@ Signiert wird mit `app/signing.jks` aus dem Repo, damit Updates sich über die a
 installieren lassen. Das ist nur in einem **privaten** Repo vertretbar.
 
 Lokal: `./gradlew assembleRelease` (Android SDK nötig).
+
+## Kalibrierung Luftdruck (ab 1.0.3)
+
+Karte „Kalibrierung Luftdruck“ in der App. Solange sie läuft, ist das Barometer immer an (auch im ortsfesten WLAN),
+mit höchster Rate und ohne Pufferung; ein Wake-Lock hält das Gerät wach. Spätestens nach 2 h endet sie von selbst.
+Beim Beginn einer Tätigkeit den passenden Knopf antippen (Treppe, Fahrstuhl, Rad, Stand), danach „Ende“.
+
+Beim Stoppen wird `baro_roh_YYYY-MM-DD_HHMM.csv` in den Zielordner exportiert:
+
+```
+t_ms,typ,wert
+1792650000123,p,1007.8312     Luftdruck (hPa)
+1792650000456,s,123456        Schrittzähler-Gesamtstand
+1792650001000,m,Treppe        Markierung (auch Start/Stopp)
+```
+
+Die normale Aufzeichnung läuft unverändert weiter.

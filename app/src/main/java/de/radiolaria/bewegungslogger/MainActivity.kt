@@ -81,6 +81,9 @@ class MainActivity : Activity() {
     private lateinit var baroText: TextView
     private lateinit var wifiSub: TextView
     private lateinit var exportSub: TextView
+    private lateinit var kalibSub: TextView
+    private lateinit var kalibToggle: TextView
+    private lateinit var kalibMarken: LinearLayout
     private lateinit var banner: TextView
     private lateinit var mainView: LinearLayout
     private lateinit var setupView: LinearLayout
@@ -123,6 +126,8 @@ class MainActivity : Activity() {
             exportSub = s2
             addView(r2)
         })
+        mainView.addView(sectionTitle("Kalibrierung Luftdruck"))
+        mainView.addView(kalibCard())
         content.addView(mainView)
 
         // ---- Einrichtung ----
@@ -434,6 +439,48 @@ class MainActivity : Activity() {
         return col to sub
     }
 
+    /** Kalibrierung: Start/Stopp und Markierknöpfe (Beginn einer Tätigkeit antippen, danach „Ende“). */
+    private fun kalibCard(): View {
+        val c = card()
+        val (r, s) = actionRowWithSub("") { onKalib() }
+        kalibToggle = (r as LinearLayout).getChildAt(0) as TextView
+        kalibSub = s
+        c.addView(r)
+        c.addView(divider())
+        kalibMarken = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(8), dp(10), dp(8), dp(12))
+        }
+        for (label in listOf("Treppe", "Fahrstuhl", "Rad", "Stand", "Ende")) {
+            val b = pillButton(label) { sendeMarke(label) }.apply {
+                textSize = 13f
+                setPadding(dp(4), dp(12), dp(4), dp(12))
+            }
+            stylePill(b, cPrimaryC, cOnPrimaryC)
+            kalibMarken.addView(b, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(3); marginEnd = dp(3)
+            })
+        }
+        c.addView(kalibMarken)
+        return c
+    }
+
+    private fun onKalib() {
+        if (!Live.running) { toast("Erst Aufzeichnung starten."); return }
+        if (!Live.baroSensor) { toast("Kein Barometer vorhanden."); return }
+        val action = if (Live.kalibSeit > 0) LoggerService.ACTION_KALIB_STOP else LoggerService.ACTION_KALIB_START
+        startService(Intent(this, LoggerService::class.java).setAction(action))
+        main.postDelayed({ refresh() }, 500)
+    }
+
+    private fun sendeMarke(label: String) {
+        if (Live.kalibSeit == 0L) { toast("Erst Kalibrierung starten."); return }
+        startService(Intent(this, LoggerService::class.java).setAction(LoggerService.ACTION_MARKE)
+            .putExtra(LoggerService.EXTRA_LABEL, label))
+        toast("Markiert: $label")
+        main.postDelayed({ refresh() }, 300)
+    }
+
     // ---------- Status ----------
 
     private fun granted(p: String) = checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
@@ -485,6 +532,15 @@ class MainActivity : Activity() {
             else -> "Verbunden: $wifiName"
         }
         exportSub.text = if (Live.running) "Zuletzt: ${Live.lastExport}" else "Erst Aufzeichnung starten"
+        val kalibLaeuft = Live.running && Live.kalibSeit > 0
+        kalibToggle.text = if (kalibLaeuft) "Kalibrierung stoppen" else "Kalibrierung starten"
+        kalibSub.text = when {
+            !Live.running -> "Erst Aufzeichnung starten"
+            kalibLaeuft -> "Läuft seit ${hm.format(Date(Live.kalibSeit))} (endet spätestens nach 2 h)" +
+                (if (Live.kalibMarke.isNotEmpty()) " · zuletzt: ${Live.kalibMarke}" else "")
+            else -> "Rohe Luftdruckwerte für die Treppe/Fahrstuhl-Erkennung. Beginn einer Tätigkeit markieren, danach „Ende“."
+        }
+        kalibMarken.alpha = if (kalibLaeuft) 1f else 0.4f
 
         if (Live.running) stylePill(toggle, cDangerC, cDanger) else stylePill(toggle, cPrimary, cOnPrimary)
         toggle.text = if (Live.running) "Aufzeichnung stoppen" else "Aufzeichnung starten"

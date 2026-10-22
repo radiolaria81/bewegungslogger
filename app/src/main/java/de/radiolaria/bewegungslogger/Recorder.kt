@@ -16,10 +16,13 @@ import java.util.Locale
  */
 class Recorder(private val ctx: Context) {
 
-    private val dir = File(ctx.filesDir, "pending").apply { mkdirs() }
+    val dir = File(ctx.filesDir, "pending").apply { mkdirs() }
     private val nameFmt = SimpleDateFormat("yyyy-MM-dd_HHZ", Locale.US)
 
     fun fileNameFor(ms: Long) = "bewegung_" + nameFmt.format(Date(ms)) + ".jsonl"
+
+    /** Stundendateien (.jsonl) und abgeschlossene Kalibrier-Aufzeichnungen (.csv). */
+    private fun exportierbar(f: File) = f.name.endsWith(".jsonl") || f.name.endsWith(".csv")
 
     fun append(nowMs: Long, line: String) {
         File(dir, fileNameFor(nowMs)).appendText(line + "\n")
@@ -27,7 +30,7 @@ class Recorder(private val ctx: Context) {
 
     fun pendingCount(nowMs: Long): Int {
         val cur = fileNameFor(nowMs)
-        return dir.listFiles()?.count { it.name.endsWith(".jsonl") && it.name != cur } ?: 0
+        return dir.listFiles()?.count { exportierbar(it) && it.name != cur } ?: 0
     }
 
     /**
@@ -55,7 +58,7 @@ class Recorder(private val ctx: Context) {
         val tree = Prefs.treeUri(ctx) ?: return -1
         val cur = fileNameFor(nowMs)
         val files = dir.listFiles()
-            ?.filter { it.name.endsWith(".jsonl") && it.name != cur }
+            ?.filter { exportierbar(it) && it.name != cur }
             ?.sortedBy { it.name }
             ?: return 0
         if (files.isEmpty()) return 0

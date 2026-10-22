@@ -26,6 +26,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,6 +49,10 @@ class LoggerService : Service(), SensorEventListener2 {
         const val ACTION_STOP = "stop"
         const val ACTION_RECHECK = "recheck"   // nach Änderung der WLAN-Liste
         const val ACTION_EXPORT = "export"
+        const val ACTION_KALIB_START = "kalib_start"
+        const val ACTION_KALIB_STOP = "kalib_stop"
+        const val ACTION_MARKE = "marke"           // Extra EXTRA_LABEL
+        const val EXTRA_LABEL = "label"
 
         private const val CHANNEL = "logger"
         private const val NOTIF_ID = 1
@@ -68,6 +73,7 @@ class LoggerService : Service(), SensorEventListener2 {
         private const val FLUSH_TIMEOUT_MS = 3_000L
         private const val LEAVE_DELAY_MS = 60_000L         // so lange muss das ortsfeste WLAN weg sein
         private const val RECORD_VERSION = 1
+        private const val KALIB_MAX_MS = 2 * 60 * 60_000L    // Kalibrierung endet spätestens nach 2 h
     }
 
     private lateinit var thread: HandlerThread
@@ -85,6 +91,9 @@ class LoggerService : Service(), SensorEventListener2 {
     private var baroOn = false
     private val baro = BaroStats()
     private var started = false
+    private var kalib: Kalibrierung? = null
+    private var kalibLock: PowerManager.WakeLock? = null
+    private val kalibAuto = Runnable { kalibStop() }
 
     // ---- Zustand, nur auf dem logger-Thread ----
     private var stationary = false
@@ -163,6 +172,12 @@ class LoggerService : Service(), SensorEventListener2 {
                 handler.removeCallbacks(tick)
                 if (!flushPending) onTick()
             }
+            ACTION_KALIB_START -> if (started) handler.post { kalibStart() }
+            ACTION_KALIB_STOP -> if (started) handler.post { kalibStop() }
+            ACTION_MARKE -> if (started) {
+                val label = intent.getStringExtra(EXTRA_LABEL) ?: "?"
+                handler.post { marke(label) }
+            }
         }
         try {
             startForeground(NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -183,6 +198,7 @@ class LoggerService : Service(), SensorEventListener2 {
         if (started) {
             handler.post {
                 finishInterval(reschedule = false)
+                kalibStop(beenden = true)
                 if (session) stopSession()
                 handler.removeCallbacksAndMessages(null)
                 sm.unregisterListener(this)
@@ -208,6 +224,8 @@ class LoggerService : Service(), SensorEventListener2 {
         baroSensor = sm.getDefaultSensor(Sensor.TYPE_PRESSURE)
         Live.stepSensor = stepSensor != null
         Live.baroSensor = baroSensor != null
+        // Nach Absturz liegengebliebene Kalibrier-Dateien zum Export geben
+        File(filesDir, "kalib").listFiles()?.forEach { f -> runCatching { f.renameTo(File(recorder.dir, f.name)) } }
 
         val actGranted = checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) ==
             PackageManager.PERMISSION_GRANTED
@@ -300,6 +318,7 @@ class LoggerService : Service(), SensorEventListener2 {
             rec.put("acc", JSONObject.NULL)
         }
         runCatching { recorder.append(now, rec.toString()) }
+        kalib?.let { k -> runCatching { k.flush() } }
 
         steps = 0
         sigCount = 0
@@ -339,6 +358,7 @@ class LoggerService : Service(), SensorEventListener2 {
         when (e.sensor.type) {
             Sensor.TYPE_STEP_COUNTER -> {
                 val total = e.values[0]
+                kalib?.let { k -> runCatching { k.schritte(e.timestamp, total) } }
                 if (lastStepTotal < 0) {
                     lastStepTotal = total // Bezugswert; Schritte davor sind unbekannt
                     return
@@ -356,7 +376,10 @@ class LoggerService : Service(), SensorEventListener2 {
                 }
             }
             Sensor.TYPE_ACCELEROMETER -> accel.add(e.timestamp, e.values[0], e.values[1], e.values[2])
-            Sensor.TYPE_PRESSURE -> baro.add(e.timestamp, e.values[0])
+            Sensor.TYPE_PRESSURE -> {
+                baro.add(e.timestamp, e.values[0])
+                kalib?.let { k -> runCatching { k.druck(e.timestamp, e.values[0]) } }
+            }
         }
     }
 
@@ -400,6 +423,7 @@ class LoggerService : Service(), SensorEventListener2 {
      */
     private fun updateBaro() {
         val s = baroSensor ?: return
+        if (kalib != null) return  // Kalibrierung: Barometer läuft durchgehend mit voller Rate
         val want = !stationary
         if (want) {
             handler.removeCallbacks(baroStop)
@@ -411,10 +435,56 @@ class LoggerService : Service(), SensorEventListener2 {
     }
 
     private val baroStop = Runnable {
-        if (stationary && baroOn) {
+        if (stationary && baroOn && kalib == null) {
             baroSensor?.let { sm.unregisterListener(this, it) }
             baroOn = false
         }
+    }
+
+    // ---------- Kalibrierung (rohe Luftdruckwerte) ----------
+
+    private fun kalibStart() {
+        if (kalib != null) return
+        val s = baroSensor ?: return
+        val now = System.currentTimeMillis()
+        val offsetNs = now * 1_000_000L - SystemClock.elapsedRealtimeNanos()
+        val k = runCatching { Kalibrierung(File(filesDir, "kalib"), recorder.dir, now, offsetNs) }.getOrNull() ?: return
+        kalib = k
+        kalibLock = getSystemService(PowerManager::class.java)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "bewegungslogger:kalib")
+            .also { it.acquire(KALIB_MAX_MS + 60_000L) }
+        // Barometer neu anmelden: höchste Rate, ohne Pufferung
+        handler.removeCallbacks(baroStop)
+        if (baroOn) sm.unregisterListener(this, s)
+        baroOn = sm.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST, 0, handler)
+        Live.kalibSeit = now
+        marke("Start")
+        handler.postDelayed(kalibAuto, KALIB_MAX_MS)
+        updateNotification()
+    }
+
+    private fun kalibStop(beenden: Boolean = false) {
+        val k = kalib ?: return
+        handler.removeCallbacks(kalibAuto)
+        marke("Stopp")
+        kalib = null
+        runCatching { k.stop() }
+        kalibLock?.let { if (it.isHeld) it.release() }
+        kalibLock = null
+        baroSensor?.let { if (baroOn) sm.unregisterListener(this, it) }
+        baroOn = false
+        Live.kalibSeit = 0L
+        if (beenden) return  // Dienst endet: Datei liegt im Exportordner, wird beim nächsten Start exportiert
+        updateBaro()  // normaler Betrieb
+        export(System.currentTimeMillis())
+        updateNotification()
+    }
+
+    private fun marke(label: String) {
+        val k = kalib ?: return
+        val now = System.currentTimeMillis()
+        runCatching { k.marke(now, label) }
+        Live.kalibMarke = label + " " + SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(Date(now))
     }
 
     // ---------- Sitzung (GPS + Beschleunigung) ----------
@@ -493,6 +563,7 @@ class LoggerService : Service(), SensorEventListener2 {
     private fun buildNotification(): Notification {
         val text = when {
             !Live.running -> "Startet …"
+            Live.kalibSeit > 0 -> "Kalibrierung läuft – Luftdruck-Rohdaten"
             Live.stationary -> "Ortsfestes WLAN – nur Schritte"
             Live.gpsOn -> "Unterwegs – GPS an"
             else -> "Unterwegs – GPS aus (keine Bewegung)"
